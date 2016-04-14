@@ -525,7 +525,7 @@ public class RexBuilder {
         case INTERVAL_DAY_TIME:
           assert value instanceof BigDecimal;
           BigDecimal value2 = (BigDecimal) value;
-          final long multiplier =
+          final BigDecimal multiplier =
               literal.getType().getIntervalQualifier().getStartUnit()
                   .multiplier;
           typeName = type.getSqlTypeName();
@@ -534,7 +534,7 @@ public class RexBuilder {
           case INTEGER:
             typeName = SqlTypeName.BIGINT;
           }
-          value = value2.divide(BigDecimal.valueOf(multiplier), 0,
+          value = value2.divide(multiplier, 0,
               BigDecimal.ROUND_HALF_DOWN);
         }
         final RexLiteral literal2 =
@@ -595,7 +595,7 @@ public class RexBuilder {
               .getFractionalSecondPrecision(typeFactory.getTypeSystem()),
           3);
     }
-    BigDecimal multiplier = BigDecimal.valueOf(endUnit.multiplier)
+    BigDecimal multiplier = endUnit.multiplier
         .divide(BigDecimal.TEN.pow(scale));
     RexNode value = decodeIntervalOrDecimal(exp);
     if (multiplier.longValue() != 1) {
@@ -627,7 +627,7 @@ public class RexBuilder {
               .getFractionalSecondPrecision(typeFactory.getTypeSystem()),
           3);
     }
-    BigDecimal multiplier = BigDecimal.valueOf(endUnit.multiplier)
+    BigDecimal multiplier = endUnit.multiplier
         .divide(BigDecimal.TEN.pow(scale));
     RelDataType decimalType =
         getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
