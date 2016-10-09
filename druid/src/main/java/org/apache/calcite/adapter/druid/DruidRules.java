@@ -160,10 +160,6 @@ public class DruidRules {
               || !query.isValidFilter(cond)) {
         return;
       }
-
-
-
-
       // Timestamp
       int timestampFieldIdx = -1;
       for (int i = 0; i < query.getRowType().getFieldCount(); i++) {
@@ -173,8 +169,9 @@ public class DruidRules {
           break;
         }
       }
-      final Pair<List<RexNode>, List<RexNode>> pair = splitFilters(
-              filter.getCluster().getRexBuilder(), query, filter.getCondition(),
+      final Pair<List<RexNode>, List<RexNode>> pair =
+          splitFilters(rexBuilder, query,
+              RexUtil.simplify(rexBuilder, filter.getCondition(), true),
               timestampFieldIdx);
       if (pair == null) {
         // We can't push anything useful to Druid.
@@ -184,7 +181,7 @@ public class DruidRules {
       if (!pair.left.isEmpty()) {
         intervals = DruidDateTimeUtils.createInterval(
                 query.getRowType().getFieldList().get(timestampFieldIdx).getType(),
-                RexUtil.composeConjunction(query.getCluster().getRexBuilder(), pair.left, false));
+                RexUtil.composeConjunction(rexBuilder, pair.left, false));
         if (intervals == null) {
           // We can't push anything useful to Druid.
           return;
@@ -193,7 +190,7 @@ public class DruidRules {
       DruidQuery newDruidQuery = query;
       if (!pair.right.isEmpty()) {
         final RelNode newFilter = filter.copy(filter.getTraitSet(), Util.last(query.rels),
-                RexUtil.composeConjunction(filter.getCluster().getRexBuilder(), pair.right, false));
+            RexUtil.composeConjunction(rexBuilder, pair.right, false));
         newDruidQuery = DruidQuery.extendQuery(query, newFilter);
       }
       if (intervals != null) {
@@ -260,6 +257,8 @@ public class DruidRules {
     public void onMatch(RelOptRuleCall call) {
       final Project project = call.rel(0);
       final DruidQuery query = call.rel(1);
+      final RelOptCluster cluster = project.getCluster();
+      final RexBuilder rexBuilder = cluster.getRexBuilder();
       if (!DruidQuery.isValidSignature(query.signature() + 'p')) {
         return;
       }
@@ -272,16 +271,16 @@ public class DruidRules {
         call.transformTo(newNode);
         return;
       }
-      final Pair<List<RexNode>, List<RexNode>> pair = splitProjects(
-              project.getCluster().getRexBuilder(), query, project.getProjects());
+      final Pair<List<RexNode>, List<RexNode>> pair =
+          splitProjects(rexBuilder, query, project.getProjects());
       if (pair == null) {
         // We can't push anything useful to Druid.
         return;
       }
       final List<RexNode> above = pair.left;
       final List<RexNode> below = pair.right;
-      final RelDataTypeFactory.FieldInfoBuilder builder = project.getCluster().getTypeFactory()
-              .builder();
+      final RelDataTypeFactory.FieldInfoBuilder builder =
+          cluster.getTypeFactory().builder();
       final RelNode input = Util.last(query.rels);
       for (RexNode e : below) {
         final String name;
