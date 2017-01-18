@@ -470,7 +470,23 @@ public class DruidRules {
         boolean refsTimestamp =
                 checkTimestampRefOnQuery(positionsReferenced.build(), topAgg.getInput(), query);
         if (refsTimestamp && metricsRefs != 0) {
+          // Metrics reference timestamp too
           return false;
+        }
+        // If the aggregate is grouping by timestamp (or a function of the
+        // timestamp such as month) then we cannot push Sort to Druid.
+        // Druid's topN and groupBy operators would sort only within the
+        // granularity, whereas we want global sort.
+        final boolean aggregateRefsTimestamp =
+            checkTimestampRefOnQuery(topAgg.getGroupSet(), topAgg.getInput(), query);
+        if (aggregateRefsTimestamp && metricsRefs != 0) {
+          return false;
+        }
+        if (refsTimestamp
+            && sort.collation.getFieldCollations().size() == 1
+            && topAgg.getGroupCount() == 1) {
+          // Timeseries query: if it has a limit, we cannot push
+          return !RelOptUtil.isLimit(sort);
         }
         return true;
       }
