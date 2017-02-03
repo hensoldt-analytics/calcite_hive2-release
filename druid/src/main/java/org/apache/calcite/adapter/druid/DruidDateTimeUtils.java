@@ -33,9 +33,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 
-import org.joda.time.Interval;
-import org.joda.time.chrono.ISOChronology;
-
 import org.slf4j.Logger;
 
 import java.sql.Date;
@@ -62,11 +59,11 @@ public class DruidDateTimeUtils {
   }
 
   /**
-   * Generates a list of {@link Interval}s equivalent to a given
+   * Generates a list of {@link LocalInterval}s equivalent to a given
    * expression. Assumes that all the predicates in the input
    * reference a single column: the timestamp column.
    */
-  public static List<Interval> createInterval(RelDataType type, RexNode e) {
+  public static List<LocalInterval> createInterval(RelDataType type, RexNode e) {
     final List<Range> ranges = extractRanges(type, e, false);
     if (ranges == null) {
       // We did not succeed, bail out
@@ -82,9 +79,9 @@ public class DruidDateTimeUtils {
     return toInterval(ImmutableList.<Range>copyOf(condensedRanges.asRanges()));
   }
 
-  protected static List<Interval> toInterval(List<Range> ranges) {
-    List<Interval> intervals = Lists.transform(ranges, new Function<Range, Interval>() {
-      @Override public Interval apply(Range range) {
+  protected static List<LocalInterval> toInterval(List<Range> ranges) {
+    List<LocalInterval> intervals = Lists.transform(ranges, new Function<Range, LocalInterval>() {
+      @Override public LocalInterval apply(Range range) {
         if (!range.hasLowerBound() && !range.hasUpperBound()) {
           return DruidTable.DEFAULT_INTERVAL;
         }
@@ -98,7 +95,7 @@ public class DruidDateTimeUtils {
         if (range.hasUpperBound() && range.upperBoundType() == BoundType.CLOSED) {
           end++;
         }
-        return new Interval(start, end, ISOChronology.getInstanceUTC());
+        return LocalInterval.create(start, end);
       }
     });
     if (LOGGER.isInfoEnabled()) {
@@ -398,20 +395,6 @@ public class DruidDateTimeUtils {
       }
     }
     return null;
-  }
-
-  /**
-   * Extract the total time span covered by these intervals. It does not check
-   * if the intervals overlap.
-   * @param intervals list of intervals
-   * @return total time span covered by these intervals
-   */
-  public static long extractTotalTime(List<Interval> intervals) {
-    long totalTime = 0;
-    for (Interval interval : intervals) {
-      totalTime += interval.getEndMillis() - interval.getStartMillis();
-    }
-    return totalTime;
   }
 
   /**
