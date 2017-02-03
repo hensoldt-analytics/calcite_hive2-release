@@ -359,6 +359,37 @@ public abstract class RelOptUtil {
   /**
    * Returns a permutation describing where output fields come from. In
    * the returned map, value of {@code map.getTargetOpt(i)} is {@code n} if
+   * field {@code i} projects input field {@code n} or applies a cast on
+   * {@code n}, -1 if it is another expression.
+   */
+  public static Mappings.TargetMapping permutationIgnoreCast(
+      List<RexNode> nodes,
+      RelDataType inputRowType) {
+    final Mappings.TargetMapping mapping =
+        Mappings.create(
+            MappingType.PARTIAL_FUNCTION,
+            nodes.size(),
+            inputRowType.getFieldCount());
+    for (Ord<RexNode> node : Ord.zip(nodes)) {
+      if (node.e instanceof RexInputRef) {
+        mapping.set(
+            node.i,
+            ((RexInputRef) node.e).getIndex());
+      } else if (node.e.isA(SqlKind.CAST)) {
+        final RexNode operand = ((RexCall) node.e).getOperands().get(0);
+        if (operand instanceof RexInputRef) {
+          mapping.set(
+            node.i,
+            ((RexInputRef) operand).getIndex());
+        }
+      }
+    }
+    return mapping;
+  }
+
+  /**
+   * Returns a permutation describing where output fields come from. In
+   * the returned map, value of {@code map.getTargetOpt(i)} is {@code n} if
    * field {@code i} projects input field {@code n}, -1 if it is an
    * expression.
    */
@@ -375,13 +406,6 @@ public abstract class RelOptUtil {
         mapping.set(
             node.i,
             ((RexInputRef) node.e).getIndex());
-      } else if (node.e.isA(SqlKind.CAST)) {
-        RexNode operand = ((RexCall) node.e).getOperands().get(0);
-        if (operand instanceof RexInputRef) {
-          mapping.set(
-              node.i,
-              ((RexInputRef) operand).getIndex());
-        }
       }
     }
     return mapping;
@@ -406,6 +430,7 @@ public abstract class RelOptUtil {
    * @return relational expression which outer joins a boolean condition
    * column
    */
+  @Deprecated // to be removed before 2.0
   public static RelNode createExistsPlan(
       RelOptCluster cluster,
       RelNode seekRel,
