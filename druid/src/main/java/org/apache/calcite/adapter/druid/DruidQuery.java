@@ -232,7 +232,8 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
 
   private boolean isValidCast(RexCall e, boolean boundedComparator) {
     assert e.isA(SqlKind.CAST);
-    if (e.getOperands().get(0).isA(SqlKind.INPUT_REF)
+    if ((e.getOperands().get(0).isA(SqlKind.INPUT_REF)
+        || e.getOperands().get(0).isA(SqlKind.LITERAL))
         && e.getType().getFamily() == SqlTypeFamily.CHARACTER) {
       // CAST of input to character type
       return true;
