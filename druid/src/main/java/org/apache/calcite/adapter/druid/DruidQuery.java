@@ -698,7 +698,7 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
       list.add(fieldNames.get(arg));
     }
     final String only = Iterables.getFirst(list, null);
-    final boolean b = aggCall.getType().getSqlTypeName() == SqlTypeName.DOUBLE;
+    final boolean b = SqlTypeName.FRACTIONAL_TYPES.contains(aggCall.getType().getSqlTypeName());
     switch (aggCall.getAggregation().getKind()) {
     case COUNT:
       if (aggCall.isDistinct()) {
