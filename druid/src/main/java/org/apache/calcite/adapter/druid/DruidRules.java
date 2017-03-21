@@ -300,6 +300,9 @@ public class DruidRules {
       for (AggregateCall aggCall : aggregate.getAggCallList()) {
         builder.addAll(aggCall.getArgList());
       }
+      if (checkAggregateOnMetric(aggregate.getGroupSet(), aggregate, query)) {
+        return false;
+      }
       return !checkTimestampRefOnQuery(builder.build(), query.getTopNode(), query);
     }
   }
@@ -331,6 +334,9 @@ public class DruidRules {
         return;
       }
 
+      if (checkAggregateOnMetric(aggregate.getGroupSet(), project, query)) {
+        return;
+      }
       final RelNode newProject = project.copy(project.getTraitSet(),
               ImmutableList.of(Util.last(query.rels)));
       final DruidQuery projectDruidQuery = DruidQuery.extendQuery(query, newProject);
@@ -519,6 +525,41 @@ public class DruidRules {
     for (int index : set) {
       if (query.druidTable.timestampFieldName.equals(
               top.getRowType().getFieldNames().get(index))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * @param set the aggregate group set
+   * @param topProject project RelNode
+   * @param query druid query
+   *
+   * @return true if one of the project aggregate is on a metric dimension
+   */
+  private static boolean checkAggregateOnMetric(ImmutableBitSet set, RelNode topProject,
+          DruidQuery query
+  ) {
+
+    if (topProject instanceof Project) {
+      ImmutableBitSet.Builder newSet = ImmutableBitSet.builder();
+      final Project project = (Project) topProject;
+      for (int index : set) {
+        RexNode node = project.getProjects().get(index);
+        if (node instanceof RexInputRef) {
+          newSet.set(((RexInputRef) node).getIndex());
+        } else if (node instanceof RexCall) {
+          RexCall call = (RexCall) node;
+          newSet.set(((RexInputRef) call.getOperands().get(0)).getIndex());
+        }
+      }
+      set = newSet.build();
+    }
+    for (int index : set) {
+      if (query.druidTable.metricFieldNames
+              .contains(query.getTopNode().getRowType().getFieldNames().get(index))) {
         return true;
       }
     }
