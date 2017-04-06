@@ -37,6 +37,7 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
@@ -346,11 +347,12 @@ public class DruidRules {
     }
 
     /* To be a valid Project, we allow it to contain references, and a single call
-     * to an FLOOR function on the timestamp column. Returns the reference to
-     * the timestamp, if any. */
+     * to an FLOOR function on the timestamp column OR Valid time extract on the top of time column
+     * Returns the reference to the timestamp, if any. */
     private static int validProject(Project project, DruidQuery query) {
       List<RexNode> nodes = project.getProjects();
       int idxTimestamp = -1;
+      boolean hasFloor = false;
       for (int i = 0; i < nodes.size(); i++) {
         final RexNode e = nodes.get(i);
         if (e instanceof RexCall) {
@@ -359,19 +361,33 @@ public class DruidRules {
           if (DruidDateTimeUtils.extractGranularity(call) == null) {
             return -1;
           }
-          if (idxTimestamp != -1) {
+          if (idxTimestamp != -1 && hasFloor) {
             // Already one usage of timestamp column
             return -1;
           }
-          if (!(call.getOperands().get(0) instanceof RexInputRef)) {
-            return -1;
+          if (call.getKind() == SqlKind.FLOOR) {
+            hasFloor = true;
+            if (!(call.getOperands().get(0) instanceof RexInputRef)) {
+              return -1;
+            }
+            final RexInputRef ref = (RexInputRef) call.getOperands().get(0);
+            if (!(checkTimestampRefOnQuery(ImmutableBitSet.of(ref.getIndex()), query.getTopNode(),
+                query
+            ))) {
+              return -1;
+            }
+            idxTimestamp = i;
+          } else {
+            RexInputRef ref;
+            // Case extract from Calcite EXTRACT_DATE(FLAG(DAY), /INT(Reinterpret($0),86400000))
+            if (call.getOperands().get(1) instanceof RexCall) {
+              RexCall refCall = (RexCall) call.getOperands().get(1);
+              ref = (RexInputRef) ((RexCall) refCall.getOperands().get(0)).getOperands().get(0);
+            } else {
+              ref = (RexInputRef) call.getOperands().get(1);
+            }
+            idxTimestamp = ref.getIndex();
           }
-          final RexInputRef ref = (RexInputRef) call.getOperands().get(0);
-          if (!(checkTimestampRefOnQuery(ImmutableBitSet.of(ref.getIndex()),
-                  query.getTopNode(), query))) {
-            return -1;
-          }
-          idxTimestamp = i;
           continue;
         }
         if (!(e instanceof RexInputRef)) {
@@ -548,12 +564,8 @@ public class DruidRules {
       final Project project = (Project) topProject;
       for (int index : set) {
         RexNode node = project.getProjects().get(index);
-        if (node instanceof RexInputRef) {
-          newSet.set(((RexInputRef) node).getIndex());
-        } else if (node instanceof RexCall) {
-          RexCall call = (RexCall) node;
-          newSet.set(((RexInputRef) call.getOperands().get(0)).getIndex());
-        }
+        ImmutableBitSet setOfBits = RelOptUtil.InputFinder.bits(node);
+        newSet.addAll(setOfBits);
       }
       set = newSet.build();
     }
