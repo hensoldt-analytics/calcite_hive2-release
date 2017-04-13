@@ -26,6 +26,7 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.rules.DateRangeRules;
 import org.apache.calcite.rel.rules.ProjectSortTransposeRule;
 import org.apache.calcite.rel.rules.SortProjectTransposeRule;
 import org.apache.calcite.rel.type.RelDataType;
@@ -162,7 +163,12 @@ public class DruidRules {
             // Complex predicate, transformation currently not supported
             return null;
           }
-          timeRangeNodes.add(conj);
+          if (DateRangeRules.extractTimeUnits(conj).isEmpty()) {
+            timeRangeNodes.add(conj);
+          } else {
+            // case extract on time handle it as normal filter
+            otherNodes.add(conj);
+          }
         } else {
           for (Integer i : visitor.inputPosReferenced) {
             if (input.druidTable.metricFieldNames.contains(

@@ -141,7 +141,12 @@ public abstract class DateRangeRules {
       final RexBuilder rexBuilder = filter.getCluster().getRexBuilder();
       RexNode condition = filter.getCondition();
       final Map<String, RangeSet<Calendar>> operandRanges = new HashMap<>();
-      for (TimeUnitRange timeUnit : extractTimeUnits(condition)) {
+      Set<TimeUnitRange> timeUnitRangeSet = extractTimeUnits(condition);
+      if (!timeUnitRangeSet.contains(TimeUnitRange.YEAR)) {
+        // bail out if there is no year extract.
+        return;
+      }
+      for (TimeUnitRange timeUnit : timeUnitRangeSet) {
         condition = condition.accept(
             new ExtractShuttle(rexBuilder, timeUnit, operandRanges));
       }
