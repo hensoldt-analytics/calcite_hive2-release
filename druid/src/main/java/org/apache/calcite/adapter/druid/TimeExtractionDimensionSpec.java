@@ -29,31 +29,61 @@ public class TimeExtractionDimensionSpec extends ExtractionDimensionSpec {
     this.outputName = outputName;
   }
 
-  public static TimeExtractionDimensionSpec makeFullTimeExtract() {
+  /**
+   * Creates a time extraction DimensionSpec that renames the '__time' column
+   * to the given name.
+   *
+   * @param outputName name of the output column
+   *
+   * @return the time extraction DimensionSpec instance
+   */
+  public static TimeExtractionDimensionSpec makeFullTimeExtract(String outputName) {
     return new TimeExtractionDimensionSpec(
             TimeExtractionFunction.createDefault(),
             DruidConnectionImpl.DEFAULT_RESPONSE_TIMESTAMP_COLUMN
     );
   }
 
-  public String getOutputName() {
-    return outputName;
-  }
-
-  public static TimeExtractionDimensionSpec makeExtract(Granularity granularity) {
+  /**
+   * Creates a time extraction DimensionSpec that formats the '__time' column
+   * according to the given granularity and outputs the column with the given
+   * name. Only YEAR, MONTH, and DAY granularity are supported.
+   *
+   * @param granularity granularity to apply to the column
+   * @param outputName  name of the output column
+   *
+   * @return time field extraction DimensionSpec instance or null if granularity
+   * is not supported
+   */
+  public static TimeExtractionDimensionSpec makeExtract(
+      Granularity granularity, String outputName) {
     switch (granularity) {
     case YEAR:
       return new TimeExtractionDimensionSpec(
-              TimeExtractionFunction.createFromGranularity(granularity), "year");
+          TimeExtractionFunction.createExtractFromGranularity(granularity), outputName);
     case MONTH:
       return new TimeExtractionDimensionSpec(
-              TimeExtractionFunction.createFromGranularity(granularity), "monthOfYear");
+          TimeExtractionFunction.createExtractFromGranularity(granularity), outputName);
     case DAY:
       return new TimeExtractionDimensionSpec(
-            TimeExtractionFunction.createFromGranularity(granularity), "dayOfMonth");
+          TimeExtractionFunction.createExtractFromGranularity(granularity), outputName);
+    // TODO: Support other granularities
     default:
       return null;
     }
+  }
+
+
+  /**
+   * Creates floor time extraction dimension spec from Granularity with a given output name
+   * @param granularity granularity to apply to the time column
+   * @param outputName name of the output column
+   *
+   * @return floor time extraction DimensionSpec instance.
+   */
+  public static TimeExtractionDimensionSpec makeFloor(Granularity granularity, String outputName) {
+    ExtractionFunction fn = TimeExtractionFunction.createFloorFromGranularity(granularity);
+    return new TimeExtractionDimensionSpec(fn, outputName);
   }
 }
 

@@ -463,10 +463,9 @@ public class DruidRules {
         return;
       }
       // Either it is:
+      // - a sort and limit on a dimension/metric part of the druid group by query or
       // - a sort without limit on the time column on top of
       //     Agg operator (transformable to timeseries query), or
-      // - it is a sort w/o limit on columns that do not include
-      //     the time column on top of Agg operator, or
       // - a simple limit on top of other operator than Agg
       if (!validSortLimit(sort, query)) {
         return;
@@ -485,35 +484,21 @@ public class DruidRules {
       if (query.getTopNode() instanceof Aggregate) {
         final Aggregate topAgg = (Aggregate) query.getTopNode();
         final ImmutableBitSet.Builder positionsReferenced = ImmutableBitSet.builder();
-        int metricsRefs = 0;
         for (RelFieldCollation col : sort.collation.getFieldCollations()) {
           int idx = col.getFieldIndex();
           if (idx >= topAgg.getGroupCount()) {
-            metricsRefs++;
             continue;
           }
+          //has the indexes of the columns used for sorts
           positionsReferenced.set(topAgg.getGroupSet().nth(idx));
         }
-        boolean refsTimestamp =
-                checkTimestampRefOnQuery(positionsReferenced.build(), topAgg.getInput(), query);
-        if (refsTimestamp && metricsRefs != 0) {
-          // Metrics reference timestamp too
-          return false;
-        }
-        // If the aggregate is grouping by timestamp (or a function of the
-        // timestamp such as month) then we cannot push Sort to Druid.
-        // Druid's topN and groupBy operators would sort only within the
-        // granularity, whereas we want global sort.
-        final boolean aggregateRefsTimestamp =
-            checkTimestampRefOnQuery(topAgg.getGroupSet(), topAgg.getInput(), query);
-        if (aggregateRefsTimestamp && metricsRefs != 0) {
-          return false;
-        }
-        if (refsTimestamp
-            && sort.collation.getFieldCollations().size() == 1
+        // Case it is a timeseries query
+        if (checkIsFlooringTimestampRefOnQuery(topAgg.getGroupSet(), topAgg.getInput(), query)
             && topAgg.getGroupCount() == 1) {
-          // Timeseries query: if it has a limit, we cannot push
-          return !RelOptUtil.isLimit(sort);
+          // do not push if it has a limit or more than one sort key or we have sort by
+          // metric/dimension
+          return !RelOptUtil.isLimit(sort) && sort.collation.getFieldCollations().size() == 1
+              && checkTimestampRefOnQuery(positionsReferenced.build(), topAgg.getInput(), query);
         }
         return true;
       }
@@ -523,7 +508,37 @@ public class DruidRules {
     }
   }
 
-  /* Check if any of the references leads to the timestamp column */
+  /** Returns true if any of the grouping key is a floor operator over the timestamp column. */
+  private static boolean checkIsFlooringTimestampRefOnQuery(ImmutableBitSet set, RelNode top,
+      DruidQuery query) {
+    if (top instanceof Project) {
+      ImmutableBitSet.Builder newSet = ImmutableBitSet.builder();
+      final Project project = (Project) top;
+      for (int index : set) {
+        RexNode node = project.getProjects().get(index);
+        if (node instanceof RexCall) {
+          RexCall call = (RexCall) node;
+          assert DruidDateTimeUtils.extractGranularity(call) != null;
+          if (call.getKind().equals(SqlKind.FLOOR)) {
+            newSet.addAll(RelOptUtil.InputFinder.bits(call));
+          }
+        }
+      }
+      top = project.getInput();
+      set = newSet.build();
+    }
+    // Check if any references the timestamp column
+    for (int index : set) {
+      if (query.druidTable.timestampFieldName.equals(
+          top.getRowType().getFieldNames().get(index))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Checks whether any of the references leads to the timestamp column. */
   private static boolean checkTimestampRefOnQuery(ImmutableBitSet set, RelNode top,
       DruidQuery query) {
     if (top instanceof Project) {
@@ -536,7 +551,8 @@ public class DruidRules {
         } else if (node instanceof RexCall) {
           RexCall call = (RexCall) node;
           assert DruidDateTimeUtils.extractGranularity(call) != null;
-          newSet.set(((RexInputRef) call.getOperands().get(0)).getIndex());
+          // when we have extract from time columnthe rexCall is in the form of /Reinterpret$0
+          newSet.addAll(RelOptUtil.InputFinder.bits(call));
         }
       }
       top = project.getInput();
