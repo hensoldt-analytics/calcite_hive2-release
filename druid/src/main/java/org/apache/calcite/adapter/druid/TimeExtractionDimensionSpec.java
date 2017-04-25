@@ -40,7 +40,7 @@ public class TimeExtractionDimensionSpec extends ExtractionDimensionSpec {
   public static TimeExtractionDimensionSpec makeFullTimeExtract(String outputName) {
     return new TimeExtractionDimensionSpec(
             TimeExtractionFunction.createDefault(),
-            DruidConnectionImpl.DEFAULT_RESPONSE_TIMESTAMP_COLUMN
+            outputName
     );
   }
 
