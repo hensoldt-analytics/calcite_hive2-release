@@ -17,9 +17,11 @@
 package org.apache.calcite.adapter.druid;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 
+import static org.apache.calcite.adapter.druid.DruidQuery.writeField;
 import static org.apache.calcite.adapter.druid.DruidQuery.writeFieldIf;
 
 /**
@@ -31,10 +33,9 @@ public class ExtractionDimensionSpec implements DimensionSpec {
   private final String outputName;
 
   public ExtractionDimensionSpec(String dimension, ExtractionFunction extractionFunction,
-          String outputName
-  ) {
-    this.dimension = dimension;
-    this.extractionFunction = extractionFunction;
+      String outputName) {
+    this.dimension = Preconditions.checkNotNull(dimension);
+    this.extractionFunction = Preconditions.checkNotNull(extractionFunction);
     this.outputName = outputName;
   }
 
@@ -44,7 +45,7 @@ public class ExtractionDimensionSpec implements DimensionSpec {
     generator.writeStringField("type", "extraction");
     generator.writeStringField("dimension", dimension);
     writeFieldIf(generator, "outputName", outputName);
-    writeFieldIf(generator, "extractionFn", extractionFunction);
+    writeField(generator, "extractionFn", extractionFunction);
     generator.writeEndObject();
   }
 
