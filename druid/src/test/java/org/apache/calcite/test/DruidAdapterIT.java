@@ -2054,6 +2054,12 @@ public class DruidAdapterIT {
     String druidQuery = "'filter':{'type':'selector','dimension':'product_id','value':''}";
     sql(sql).queryContains(druidChecker(druidQuery));
   }
+
+  @Test public void testFalseFilter() {
+    String sql = "Select count(*) as c from \"foodmart\" where false";
+    sql(sql).returnsUnordered("C=0");
+  }
+
 }
 
 // End DruidAdapterIT.java

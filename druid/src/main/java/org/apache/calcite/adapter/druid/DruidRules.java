@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.adapter.druid;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -101,10 +102,20 @@ public class DruidRules {
     public void onMatch(RelOptRuleCall call) {
       final Filter filter = call.rel(0);
       final DruidQuery query = call.rel(1);
-      if (!DruidQuery.isValidSignature(query.signature() + 'f')
-              || !query.isValidFilter(filter.getCondition())) {
+      final RelOptCluster cluster = filter.getCluster();
+      final RexBuilder rexBuilder = cluster.getRexBuilder();
+      final RexNode cond = RexUtil.simplify(rexBuilder, filter.getCondition());
+      if (!canPush(cond)) {
         return;
       }
+      if (!DruidQuery.isValidSignature(query.signature() + 'f')
+              || !query.isValidFilter(cond)) {
+        return;
+      }
+
+
+
+
       // Timestamp
       int timestampFieldIdx = -1;
       for (int i = 0; i < query.getRowType().getFieldCount(); i++) {
@@ -181,6 +192,12 @@ public class DruidRules {
         }
       }
       return Pair.of(timeRangeNodes, otherNodes);
+    }
+
+    /** Returns whether we can push an expression to Druid. */
+    private static boolean canPush(RexNode cond) {
+      // Druid cannot implement "where false"
+      return !cond.isAlwaysFalse();
     }
   }
 
