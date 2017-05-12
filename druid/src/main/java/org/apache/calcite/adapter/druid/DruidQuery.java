@@ -258,6 +258,16 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
       // CAST of literal to timestamp type
       return true;
     }
+    if (e.getOperands().get(0).isA(SqlKind.LITERAL)
+        && e.getType().getFamily() == SqlTypeFamily.NUMERIC) {
+      // CAST of literal of type integer to type double
+      // This is a hack till we update calcite 12 or higher
+      boolean castIsDouble = e.getType().getSqlTypeName().equals(SqlTypeName.DOUBLE);
+      boolean literalIsNumber = (e.getOperands().get(0)).getType().getSqlTypeName()
+              .equals(SqlTypeName.INTEGER);
+      return castIsDouble && literalIsNumber;
+
+    }
     // Currently other CAST operations cannot be pushed to Druid
     return false;
   }
