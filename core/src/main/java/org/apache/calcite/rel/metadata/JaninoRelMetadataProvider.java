@@ -104,9 +104,11 @@ public class JaninoRelMetadataProvider implements RelMetadataProvider {
 
   /** Cache of pre-generated handlers by provider and kind of metadata.
    * For the cache to be effective, providers should implement identity
-   * correctly. */
+   * correctly.
+   * The size of the cache needs to be limited as it is static. Otherwise,
+   * it would grow indefinitely and lead to OOM exceptions. */
   private static final LoadingCache<Key, MetadataHandler> HANDLERS =
-      CacheBuilder.newBuilder().build(
+      CacheBuilder.newBuilder().maximumSize(1000).build(
           new CacheLoader<Key, MetadataHandler>() {
             public MetadataHandler load(@Nonnull Key key) {
               //noinspection unchecked
