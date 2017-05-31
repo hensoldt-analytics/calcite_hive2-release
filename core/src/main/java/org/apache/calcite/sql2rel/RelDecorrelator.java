@@ -1739,7 +1739,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // The join filters out the nulls.  So, it's ok if there are
         // nulls in the join keys.
-        final RelMetadataQuery mq = RelMetadataQuery.instance();
+        final RelMetadataQuery mq = call.getMetadataQuery();
         if (!RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(mq, right,
             rightJoinKeys)) {
           SQL2REL_LOGGER.debug("{} are not unique keys for {}",
@@ -1953,7 +1953,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // The join filters out the nulls.  So, it's ok if there are
         // nulls in the join keys.
-        final RelMetadataQuery mq = RelMetadataQuery.instance();
+        final RelMetadataQuery mq = call.getMetadataQuery();
         if (!RelMdUtil.areColumnsDefinitelyUniqueWhenNullsFiltered(mq, left,
             correlatedInputRefJoinKeys)) {
           SQL2REL_LOGGER.debug("{} are not unique keys for {}",
@@ -2031,7 +2031,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         // leftInputRel contains unique keys
         // i.e. each row is distinct and can group by on all the left
         // fields
-        final RelMetadataQuery mq = RelMetadataQuery.instance();
+        final RelMetadataQuery mq = call.getMetadataQuery();
         if (!RelMdUtil.areColumnsDefinitelyUnique(mq, left, allCols)) {
           SQL2REL_LOGGER.debug("There are no unique keys for {}", left);
           return;

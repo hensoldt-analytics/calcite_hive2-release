@@ -100,7 +100,7 @@ public class SortJoinTransposeRule extends RelOptRule {
     // We create a new sort operator on the corresponding input
     final RelNode newLeftInput;
     final RelNode newRightInput;
-    final RelMetadataQuery mq = RelMetadataQuery.instance();
+    final RelMetadataQuery mq = call.getMetadataQuery();
     if (join.getJoinType() == JoinRelType.LEFT) {
       // If the input is already sorted and we are not reducing the number of tuples,
       // we bail out
