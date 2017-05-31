@@ -289,7 +289,7 @@ public class JaninoRelMetadataProvider implements RelMetadataProvider {
           .append("      mq.map.put(key, x);\n")
           .append("      return x;\n")
           .append("    } catch (")
-          .append(NoHandler.class.getName())
+          .append(Exception.class.getName())
           .append(" e) {\n")
           .append("      mq.map.remove(key);\n")
           .append("      throw e;\n")
