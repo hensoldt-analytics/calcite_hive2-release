@@ -39,6 +39,10 @@ public class ExtractionDimensionSpec implements DimensionSpec {
     this.outputName = outputName;
   }
 
+  public String getOutputName() {
+    return outputName;
+  }
+
   @Override public void write(JsonGenerator generator) throws IOException {
 
     generator.writeStartObject();

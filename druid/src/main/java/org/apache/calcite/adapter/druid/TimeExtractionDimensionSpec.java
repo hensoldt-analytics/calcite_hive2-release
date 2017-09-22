@@ -20,13 +20,10 @@ package org.apache.calcite.adapter.druid;
  * Time extraction dimension spec implementation
  */
 public class TimeExtractionDimensionSpec extends ExtractionDimensionSpec {
-  private final String outputName;
 
-  public TimeExtractionDimensionSpec(ExtractionFunction extractionFunction,
-          String outputName
-  ) {
-    super("__time", extractionFunction, outputName);
-    this.outputName = outputName;
+  public TimeExtractionDimensionSpec(
+      ExtractionFunction extractionFunction, String outputName) {
+    super(DruidTable.DEFAULT_TIMESTAMP_COLUMN, extractionFunction, outputName);
   }
 
   /**

@@ -325,7 +325,7 @@ public class DruidAdapterIT {
         + "EnumerableInterpreter\n"
         + "  DruidQuery(table=[[wiki, wikiticker]], "
         + "intervals=[[1900-01-01T00:00:00.000/2015-10-12T00:00:00.000]], "
-        + "groups=[{0}], aggs=[[]])\n";
+        + "projects=[[$0]], groups=[{0}], aggs=[[]])\n";
     final String subDruidQuery = "{'queryType':'groupBy','dataSource':'wikiticker',"
         + "'granularity':'all','dimensions':[{'type':'extraction',"
         + "'dimension':'__time','outputName':'extract',"
@@ -1456,8 +1456,8 @@ public class DruidAdapterIT {
   @Test public void testPushAggregateOnTime() {
     String sql = "select \"product_id\", \"timestamp\" as \"time\" from \"foodmart\" "
         + "where \"product_id\" = 1016 "
-        + "and \"timestamp\" < cast('1997-01-03' as timestamp) "
-        + "and \"timestamp\" > cast('1990-01-01' as timestamp) "
+        + "and \"timestamp\" < '1997-01-03 00:00:00' "
+        + "and \"timestamp\" > '1990-01-01 00:00:00' "
         + "group by \"timestamp\", \"product_id\" ";
     String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart',"
         + "'granularity':'all','dimensions':[{'type':'extraction',"
@@ -1471,8 +1471,9 @@ public class DruidAdapterIT {
   @Test public void testPushAggregateOnTimeWithExtractYear() {
     String sql = "select EXTRACT( year from \"timestamp\") as \"year\",\"product_id\" from "
         + "\"foodmart\" where \"product_id\" = 1016 and "
-        + "\"timestamp\" < cast('1999-01-02' as timestamp) and \"timestamp\" > cast"
-        + "('1997-01-01' as timestamp)" + " group by "
+        + "\"timestamp\" < '1999-01-02 00:00:00' and \"timestamp\" > "
+        + "'1997-01-01 00:00:00'"
+        + " group by "
         + " EXTRACT( year from \"timestamp\"), \"product_id\" ";
     sql(sql)
         .queryContains(
@@ -1488,8 +1489,9 @@ public class DruidAdapterIT {
   @Test public void testPushAggregateOnTimeWithExtractMonth() {
     String sql = "select EXTRACT( month from \"timestamp\") as \"month\",\"product_id\" from "
         + "\"foodmart\" where \"product_id\" = 1016 and "
-        + "\"timestamp\" < cast('1997-06-02' as timestamp) and \"timestamp\" > cast"
-        + "('1997-01-01' as timestamp)" + " group by "
+        + "\"timestamp\" < '1997-06-02 00:00:00' and \"timestamp\" > "
+        + "'1997-01-01 00:00:00'"
+        + " group by "
         + " EXTRACT( month from \"timestamp\"), \"product_id\" ";
     sql(sql)
         .queryContains(
@@ -1507,8 +1509,9 @@ public class DruidAdapterIT {
     String sql = "select EXTRACT( day from \"timestamp\") as \"day\","
         + "\"product_id\" from \"foodmart\""
         + " where \"product_id\" = 1016 and "
-        + "\"timestamp\" < cast('1997-01-20' as timestamp) and \"timestamp\" > cast"
-        + "('1997-01-01' as timestamp)" + " group by "
+        + "\"timestamp\" < '1997-01-20 00:00:00' and \"timestamp\" > "
+        + "'1997-01-01 00:00:00'"
+        + " group by "
         + " EXTRACT( day from \"timestamp\"), \"product_id\" ";
     sql(sql)
         .queryContains(
@@ -1530,8 +1533,9 @@ public class DruidAdapterIT {
     String sql =
             "select EXTRACT( hour from \"timestamp\") as \"hourOfDay\",\"product_id\"  from "
                     + "\"foodmart\" where \"product_id\" = 1016 and "
-                    + "\"timestamp\" < cast('1997-06-02' as timestamp) and \"timestamp\" > cast"
-                    + "('1997-01-01' as timestamp)" + " group by "
+                    + "\"timestamp\" < '1997-06-02 00:00:00' and \"timestamp\" > "
+                    + "'1997-01-01 00:00:00'"
+                    + " group by "
                     + " EXTRACT( hour from \"timestamp\"), \"product_id\" ";
 
     sql(sql).queryContains(druidChecker
@@ -1549,8 +1553,8 @@ public class DruidAdapterIT {
     String sql = "select EXTRACT( day from \"timestamp\") as \"day\", EXTRACT( month from "
         + "\"timestamp\") as \"month\",  EXTRACT( year from \"timestamp\") as \"year\",\""
         + "product_id\"  from \"foodmart\" where \"product_id\" = 1016 and "
-        + "\"timestamp\" < cast('1997-01-20' as timestamp) and \"timestamp\" > cast"
-        + "('1997-01-01' as timestamp)"
+        + "\"timestamp\" < '1997-01-20 00:00:00' and \"timestamp\" > "
+        + "'1997-01-01 00:00:00'"
         + " group by "
         + " EXTRACT( day from \"timestamp\"), EXTRACT( month from \"timestamp\"),"
         + " EXTRACT( year from \"timestamp\"), \"product_id\" ";
@@ -1584,8 +1588,8 @@ public class DruidAdapterIT {
     String sql = "select EXTRACT( day from \"timestamp\"), EXTRACT( month from "
         + "\"timestamp\"), EXTRACT( year from \"timestamp\"),\""
         + "product_id\"  from \"foodmart\" where \"product_id\" = 1016 and "
-        + "\"timestamp\" < cast('1997-01-20' as timestamp) and \"timestamp\" > cast"
-        + "('1997-01-01' as timestamp)"
+        + "\"timestamp\" < '1997-01-20 00:00:00' and \"timestamp\" > "
+        + "'1997-01-01 00:00:00'"
         + " group by "
         + " EXTRACT( day from \"timestamp\"), EXTRACT( month from \"timestamp\"),"
         + " EXTRACT( year from \"timestamp\"), \"product_id\" ";
@@ -1617,8 +1621,8 @@ public class DruidAdapterIT {
   @Test public void testPushAggregateOnTimeWithExtractWithOutRenaming() {
     String sql = "select EXTRACT( day from \"timestamp\"), "
         + "\"product_id\" as \"dayOfMonth\" from \"foodmart\" "
-        + "where \"product_id\" = 1016 and \"timestamp\" < cast('1997-01-20' as timestamp) "
-        + "and \"timestamp\" > cast('1997-01-01' as timestamp)"
+        + "where \"product_id\" = 1016 and \"timestamp\" < '1997-01-20 00:00:00' "
+        + "and \"timestamp\" > '1997-01-01 00:00:00'"
         + " group by "
         + " EXTRACT( day from \"timestamp\"), EXTRACT( day from \"timestamp\"),"
         + " \"product_id\" ";
@@ -1835,11 +1839,12 @@ public class DruidAdapterIT {
   }
 
   @Test public void testPushofOrderByYearWithYearMonthExtract() {
-    String sqlQuery = "SELECT year(\"timestamp\") as y, extract(month from \"timestamp\") as m , "
+    String sqlQuery = "SELECT extract(year from \"timestamp\") as y, "
+        + "extract(month from \"timestamp\") as m , "
         + "\"product_id\", SUM"
         + "(\"unit_sales\") as s FROM \"foodmart\""
         + " WHERE \"product_id\" >= 1558"
-        + " GROUP BY year(\"timestamp\"), extract(month from \"timestamp\"), \"product_id\" order"
+        + " GROUP BY extract(year from \"timestamp\"), extract(month from \"timestamp\"), \"product_id\" order"
         + " by y DESC, m ASC, s DESC, \"product_id\" LIMIT 3";
     final String expectedPlan = "PLAN=EnumerableInterpreter\n"
         + "  DruidQuery(table=[[foodmart, foodmart]], "
@@ -1872,10 +1877,11 @@ public class DruidAdapterIT {
   }
 
   @Test public void testPushofOrderByMetricWithYearMonthExtract() {
-    String sqlQuery = "SELECT year(\"timestamp\") as y, extract(month from \"timestamp\") as m , "
+    String sqlQuery = "SELECT extract(year from \"timestamp\") as y, "
+        + "extract(month from \"timestamp\") as m , "
         + "\"product_id\", SUM(\"unit_sales\") as s FROM \"foodmart\""
         + " WHERE \"product_id\" >= 1558"
-        + " GROUP BY year(\"timestamp\"), extract(month from \"timestamp\"), \"product_id\" order"
+        + " GROUP BY extract(year from \"timestamp\"), extract(month from \"timestamp\"), \"product_id\" order"
         + " by s DESC, m DESC, \"product_id\" LIMIT 3";
     final String expectedPlan = "PLAN=EnumerableInterpreter\n"
         + "  DruidQuery(table=[[foodmart, foodmart]], "
@@ -1951,10 +1957,10 @@ public class DruidAdapterIT {
 
   @Test public void testNumericOrderingOfOrderByOperatorTimeExtract() {
     final String sqlQuery = "SELECT extract(day from \"timestamp\") as d, extract(month from "
-        + "\"timestamp\") as m,  year(\"timestamp\") as y , count(*) as c, SUM(\"unit_sales\")  "
+        + "\"timestamp\") as m, extract(year from \"timestamp\") as y , count(*) as c, SUM(\"unit_sales\")  "
         + "as s FROM "
         + "\"foodmart\" group by  extract(day from \"timestamp\"), extract(month from \"timestamp\"), "
-        + "year(\"timestamp\")  order by d DESC, m ASC, y DESC LIMIT 5";
+        + "extract (year from \"timestamp\")  order by d DESC, m ASC, y DESC LIMIT 5";
     final String druidSubQuery = "'limitSpec':{'type':'default','limit':5,"
         + "'columns':[{'dimension':'extract_day','direction':'descending',"
         + "'dimensionOrder':'numeric'},{'dimension':'extract_month',"
