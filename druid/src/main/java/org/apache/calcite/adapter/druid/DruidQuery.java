@@ -1042,7 +1042,7 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
           // normal selector
           if (numeric && extractionFunction == null) {
             String constantValue = tr(e, posConstant);
-            return new JsonBound("bound", dimName, constantValue, true, constantValue, true,
+            return new JsonBound("bound", dimName, constantValue, false, constantValue, false,
                 numeric, extractionFunction);
           }
           return new JsonSelector("selector", dimName, tr(e, posConstant), extractionFunction);
@@ -1054,9 +1054,9 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
             String constantValue = tr(e, posConstant);
             return new JsonCompositeFilter("or",
                 ImmutableList.of(
-                    new JsonBound("bound", dimName, constantValue, false, null, false,
+                    new JsonBound("bound", dimName, constantValue, true, null, false,
                         numeric, extractionFunction),
-                    new JsonBound("bound", dimName, null, false, constantValue, false,
+                    new JsonBound("bound", dimName, null, false, constantValue, true,
                         numeric, extractionFunction)));
           }
           return new JsonCompositeFilter("not",
