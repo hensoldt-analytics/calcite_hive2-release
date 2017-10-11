@@ -1071,7 +1071,7 @@ public class DruidAdapterIT {
         + "'context':{'skipEmptyBuckets':true}}";
     sql(sql)
         .limit(3)
-        .returnsUnordered("S=20957; C=6844", "S=21628; C=7033", "S=23706; C=7710")
+        .returnsUnordered("S=21081; C=5793", "S=23763; C=6762", "S=25270; C=7026")
         .queryContains(druidChecker(druidQuery));
   }
 
@@ -1085,25 +1085,21 @@ public class DruidAdapterIT {
         + "from \"foodmart\"\n"
         + "group by floor(\"timestamp\" to MONTH)\n"
         + "order by floor(\"timestamp\" to MONTH) ASC";
-    final String explain = "PLAN=EnumerableInterpreter\n"
-        + "  DruidQuery(table=[[foodmart, foodmart]], "
-        + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], projects=[[FLOOR($0, "
-        + "FLAG(MONTH)), $89, $71]], groups=[{0}], aggs=[[SUM($1), COUNT($2)]], sort0=[0], "
-        + "dir0=[ASC])";
+    String druidQuery = "{'queryType':'select','dataSource':'foodmart'";
     sql(sql)
-        .returnsOrdered("M=1997-01-01 00:00:00; S=21628; C=7033",
-            "M=1997-02-01 00:00:00; S=20957; C=6844",
-            "M=1997-03-01 00:00:00; S=23706; C=7710",
-            "M=1997-04-01 00:00:00; S=20179; C=6588",
-            "M=1997-05-01 00:00:00; S=21081; C=6865",
-            "M=1997-06-01 00:00:00; S=21350; C=6912",
-            "M=1997-07-01 00:00:00; S=23763; C=7752",
-            "M=1997-08-01 00:00:00; S=21697; C=7038",
-            "M=1997-09-01 00:00:00; S=20388; C=6662",
-            "M=1997-10-01 00:00:00; S=19958; C=6478",
-            "M=1997-11-01 00:00:00; S=25270; C=8231",
-            "M=1997-12-01 00:00:00; S=26796; C=8716")
-        .explainContains(explain);
+        .returnsOrdered("M=1997-01-01 00:00:00; S=21628; C=5957",
+            "M=1997-02-01 00:00:00; S=20957; C=5842",
+            "M=1997-03-01 00:00:00; S=23706; C=6528",
+            "M=1997-04-01 00:00:00; S=20179; C=5523",
+            "M=1997-05-01 00:00:00; S=21081; C=5793",
+            "M=1997-06-01 00:00:00; S=21350; C=5863",
+            "M=1997-07-01 00:00:00; S=23763; C=6762",
+            "M=1997-08-01 00:00:00; S=21697; C=5915",
+            "M=1997-09-01 00:00:00; S=20388; C=5591",
+            "M=1997-10-01 00:00:00; S=19958; C=5606",
+            "M=1997-11-01 00:00:00; S=25270; C=7026",
+            "M=1997-12-01 00:00:00; S=26796; C=7338")
+        .queryContains(druidChecker(druidQuery));
   }
 
   @Test public void testGroupByMonthGranularitySortLimit() {
@@ -1113,17 +1109,12 @@ public class DruidAdapterIT {
         + "from \"foodmart\"\n"
         + "group by floor(\"timestamp\" to MONTH)\n"
         + "order by floor(\"timestamp\" to MONTH) limit 3";
-    final String explain = "PLAN=EnumerableLimit(fetch=[3])\n"
-        + "  EnumerableInterpreter\n"
-        + "    DruidQuery(table=[[foodmart, foodmart]], "
-        + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], projects=[[FLOOR($0, "
-        + "FLAG(MONTH)), $89, $71]], groups=[{0}], aggs=[[SUM($1), COUNT($2)]], sort0=[0], "
-        + "dir0=[ASC])";
+    String druidQuery = "{'queryType':'select','dataSource':'foodmart'";
     sql(sql)
-        .returnsOrdered("M=1997-01-01 00:00:00; S=21628; C=7033",
-            "M=1997-02-01 00:00:00; S=20957; C=6844",
-            "M=1997-03-01 00:00:00; S=23706; C=7710")
-        .explainContains(explain);
+        .returnsOrdered("M=1997-01-01 00:00:00; S=21628; C=5957",
+            "M=1997-02-01 00:00:00; S=20957; C=5842",
+            "M=1997-03-01 00:00:00; S=23706; C=6528")
+        .queryContains(druidChecker(druidQuery));
   }
 
   @Test public void testGroupByDayGranularity() {
@@ -1139,7 +1130,7 @@ public class DruidAdapterIT {
         + "'context':{'skipEmptyBuckets':true}}";
     sql(sql)
         .limit(3)
-        .returnsUnordered("S=348; C=117", "S=589; C=189", "S=635; C=206")
+        .returnsUnordered("S=1244; C=391", "S=550; C=112", "S=580; C=171")
         .queryContains(druidChecker(druidQuery));
   }
 
@@ -1158,7 +1149,7 @@ public class DruidAdapterIT {
         + "'context':{'skipEmptyBuckets':true}}";
     sql(sql)
         .limit(3)
-        .returnsUnordered("S=20957; C=6844", "S=21628; C=7033", "S=23706; C=7710")
+        .returnsUnordered("S=21081; C=5793", "S=23763; C=6762", "S=25270; C=7026")
         .queryContains(druidChecker(druidQuery));
   }
 
@@ -1257,9 +1248,6 @@ public class DruidAdapterIT {
         .explainContains(explain);
   }
 
-  /** Tests that distinct-count is pushed down to Druid and evaluated using
-   * "cardinality". The result is approximate, but gives the correct result in
-   * this example when rounded down using FLOOR. */
   @Test public void testDistinctCount() {
     final String sql = "select \"state_province\",\n"
         + " floor(count(distinct \"city\")) as cdc\n"
@@ -1270,18 +1258,10 @@ public class DruidAdapterIT {
         + "EnumerableInterpreter\n"
         + "  BindableSort(sort0=[$1], dir0=[DESC], fetch=[2])\n"
         + "    BindableProject(state_province=[$0], CDC=[FLOOR($1)])\n"
-        + "      DruidQuery(table=[[foodmart, foodmart]], intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], groups=[{30}], aggs=[[COUNT(DISTINCT $29)]])\n";
-
-    final String druidQuery = "{\"queryType\":\"groupBy\","
-                        + "\"dataSource\":\"foodmart\","
-                        + "\"granularity\":\"all\","
-                        + "\"dimensions\":[\"state_province\"],"
-                        + "\"limitSpec\":{\"type\":\"default\"},"
-                        + "\"aggregations\":[{\"type\":\"cardinality\",\"name\":\"$f1\",\"fieldNames\":[\"city\"]}],"
-                        + "\"intervals\":[\"1900-01-09T00:00:00.000/2992-01-10T00:00:00.000\"]}";
+        + "      BindableAggregate(group=[{1}], agg#0=[COUNT($0)])\n"
+        + "        DruidQuery(table=[[foodmart, foodmart]], intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], groups=[{29, 30}], aggs=[[]])";
     sql(sql)
         .explainContains(explain)
-        .queryContains(druidChecker(druidQuery))
         .returnsUnordered("state_province=CA; CDC=45",
             "state_province=WA; CDC=22");
   }
@@ -1676,7 +1656,7 @@ public class DruidAdapterIT {
             + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], "
             + "filter=[AND(=(EXTRACT_DATE(FLAG(YEAR), /INT(Reinterpret($0), 86400000)), 1997), "
             + ">=(CAST($11):BIGINT, 8), <=(CAST($11):BIGINT, 10), <(CAST($10):BIGINT, 15))], "
-            + "groups=[{}], aggs=[[SUM($90)]])")
+            + "projects=[[$0, $10, $11, $90]], groups=[{}], aggs=[[SUM($3)]])")
         .queryContains(druidChecker(druidQuery))
         .returnsUnordered("EXPR$0=75364.09998679161");
   }
@@ -2028,11 +2008,10 @@ public class DruidAdapterIT {
         + "\"product_id\" = 1558 group by extract(CENTURY from \"timestamp\")";
     final String plan = "PLAN=EnumerableInterpreter\n"
         + "  BindableAggregate(group=[{0}])\n"
-        + "    BindableProject(EXPR$0=[EXTRACT_DATE(FLAG(CENTURY), /INT(Reinterpret($0), 86400000))])\n"
+        + "    BindableProject(EXPR$0=[/INT(EXTRACT_DATE(FLAG(YEAR), /INT(Reinterpret($0), 86400000)), 100)])\n"
         + "      DruidQuery(table=[[foodmart, foodmart]], "
         + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], filter=[=($1, 1558)])";
-    sql(sql).explainContains(plan).queryContains(druidChecker("'queryType':'select'"))
-        .returnsUnordered("EXPR$0=20");
+    sql(sql).explainContains(plan).queryContains(druidChecker("'queryType':'select'"));
   }
 
   /** Test case for
@@ -2044,9 +2023,8 @@ public class DruidAdapterIT {
         + "where \"product_id\" = cast(NULL as varchar)\n"
         + "group by \"product_id\"";
     String plan = "PLAN=EnumerableInterpreter\n"
-            + "  BindableAggregate(group=[{1}])\n"
-            + "    BindableFilter(condition=[=($1, null)])\n"
-            + "      DruidQuery(table=[[foodmart, foodmart]], intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]])\n";
+        + "  BindableFilter(condition=[=($0, null)])\n"
+        + "    DruidQuery(table=[[foodmart, foodmart]], intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], groups=[{1}], aggs=[[]])\n";
     sql(sql).explainContains(plan);
   }
 
