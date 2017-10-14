@@ -45,6 +45,7 @@ import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -378,9 +379,8 @@ public class DruidQuery extends AbstractRelNode implements BindableRel {
             // A plan returning 100 or more columns will have 2x the cost of a
             // plan returning 2 columns.
             // A plan where all extra columns are pruned will be preferred.
-            /*commented this to avoid transitive deps
             .multiplyBy(
-                    RelMdUtil.linear(querySpec.fieldNames.size(), 2, 100, 1d, 2d))*/
+                    RelMdUtil.linear(querySpec.fieldNames.size(), 2, 100, 1d, 2d))
             .multiplyBy(getQueryTypeCostMultiplier())
             // a plan with sort pushed to druid is better than doing sort outside of druid
             .multiplyBy(Util.last(rels) instanceof Sort ? 0.1 : 1.0);

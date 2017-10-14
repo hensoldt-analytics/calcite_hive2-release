@@ -49,6 +49,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
@@ -61,6 +62,7 @@ import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -151,18 +153,23 @@ public class DruidRules {
       final Filter filter = call.rel(0);
       final DruidQuery query = call.rel(1);
       final RelOptCluster cluster = filter.getCluster();
+      final RelBuilder relBuilder = call.builder();
       final RexBuilder rexBuilder = cluster.getRexBuilder();
       final RexNode cond = RexUtil.simplify(rexBuilder, filter.getCondition());
-      if (!canPush(cond)) {
-        return;
-      }
       if (!DruidQuery.isValidSignature(query.signature() + 'f')
-              || !query.isValidFilter(cond)) {
+              || !canPush(cond)) {
         return;
       }
 
-
-
+      final List<RexNode> validPreds = new ArrayList<>();
+      final List<RexNode> nonValidPreds = new ArrayList<>();
+      for (RexNode e : RelOptUtil.conjunctions(cond)) {
+        if (query.isValidFilter(e)) {
+          validPreds.add(e);
+        } else {
+          nonValidPreds.add(e);
+        }
+      }
 
       // Timestamp
       int timestampFieldIdx = -1;
@@ -173,73 +180,92 @@ public class DruidRules {
           break;
         }
       }
-      final Pair<List<RexNode>, List<RexNode>> pair = splitFilters(
-              filter.getCluster().getRexBuilder(), query, filter.getCondition(),
-              timestampFieldIdx);
-      if (pair == null) {
+
+      final List<RexNode>[] triple =
+          splitFilters(rexBuilder, query, validPreds, nonValidPreds, timestampFieldIdx);
+      LOGGER.info("Jesus - This is my triple: " + Arrays.toString(triple));
+      if (triple[0].isEmpty() && triple[1].isEmpty()) {
         // We can't push anything useful to Druid.
         return;
       }
+      final List<RexNode> residualPreds = new ArrayList<>(triple[2]);
       List<LocalInterval> intervals = null;
-      if (!pair.left.isEmpty()) {
+      if (!triple[0].isEmpty()) {
         intervals = DruidDateTimeUtils.createInterval(
-                query.getRowType().getFieldList().get(timestampFieldIdx).getType(),
-                RexUtil.composeConjunction(query.getCluster().getRexBuilder(), pair.left, false));
-        if (intervals == null) {
-          // We can't push anything useful to Druid.
-          return;
+            query.getRowType().getFieldList().get(timestampFieldIdx).getType(),
+            RexUtil.composeConjunction(query.getCluster().getRexBuilder(), triple[0], false));
+        if (intervals == null || intervals.isEmpty()) {
+          // Case we have an filter with extract that can not be written as interval push down
+          triple[1].addAll(triple[0]);
         }
       }
-      DruidQuery newDruidQuery = query;
-      if (!pair.right.isEmpty()) {
+      RelNode newDruidQuery = query;
+      if (!triple[1].isEmpty()) {
         final RelNode newFilter = filter.copy(filter.getTraitSet(), Util.last(query.rels),
-                RexUtil.composeConjunction(filter.getCluster().getRexBuilder(), pair.right, false));
+            RexUtil.composeConjunction(rexBuilder, triple[1], false));
         newDruidQuery = DruidQuery.extendQuery(query, newFilter);
       }
-      if (intervals != null) {
-        newDruidQuery = DruidQuery.extendQuery(newDruidQuery, intervals);
+      if (intervals != null && !intervals.isEmpty()) {
+        newDruidQuery = DruidQuery.extendQuery((DruidQuery) newDruidQuery, intervals);
+      }
+      if (!residualPreds.isEmpty()) {
+        newDruidQuery = relBuilder
+            .push(newDruidQuery)
+            .filter(residualPreds)
+            .build();
       }
       call.transformTo(newDruidQuery);
     }
 
-    /* Splits the filter condition in two groups: those that filter on the timestamp column
-     * and those that filter on other fields */
-    private static Pair<List<RexNode>, List<RexNode>> splitFilters(final RexBuilder rexBuilder,
-            final DruidQuery input, RexNode cond, final int timestampFieldIdx) {
+    /**
+     * Given a list of conditions that contain Druid valid operations and
+     * a list that contains those that contain any non-supported operation,
+     * it outputs a triple with three different categories:
+     * 1-l) condition filters on the timestamp column,
+     * 2-m) condition filters that can be pushed to Druid,
+     * 3-r) condition filters that cannot be pushed to Druid.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<RexNode>[] splitFilters(
+        final RexBuilder rexBuilder, final DruidQuery input, final List<RexNode> validPreds,
+        final List<RexNode> nonValidPreds, final int timestampFieldIdx) {
       final List<RexNode> timeRangeNodes = new ArrayList<>();
-      final List<RexNode> otherNodes = new ArrayList<>();
-      List<RexNode> conjs = RelOptUtil.conjunctions(cond);
-      if (conjs.isEmpty()) {
-        // We do not transform
-        return null;
-      }
+      final List<RexNode> pushableNodes = new ArrayList<>();
+      final List<RexNode> nonPushableNodes = new ArrayList<>(nonValidPreds);
       // Number of columns with the dimensions and timestamp
-      for (RexNode conj : conjs) {
+      for (RexNode conj : validPreds) {
         final RelOptUtil.InputReferencedVisitor visitor = new RelOptUtil.InputReferencedVisitor();
         conj.accept(visitor);
         if (visitor.inputPosReferenced.contains(timestampFieldIdx)) {
           if (visitor.inputPosReferenced.size() != 1) {
             // Complex predicate, transformation currently not supported
-            return null;
-          }
-          if (DateRangeRules.extractTimeUnits(conj).isEmpty()) {
-            timeRangeNodes.add(conj);
+            nonPushableNodes.add(conj);
           } else {
-            // case extract on time handle it as normal filter
-            otherNodes.add(conj);
+            if (DateRangeRules.extractTimeUnits(conj).isEmpty()) {
+              timeRangeNodes.add(conj);
+            } else {
+              // case extract on time handle it as normal filter
+              pushableNodes.add(conj);
+            }
           }
         } else {
+          boolean filterOnMetrics = false;
           for (Integer i : visitor.inputPosReferenced) {
             if (input.druidTable.metricFieldNames.contains(
                     input.getRowType().getFieldList().get(i).getName())) {
               // Filter on metrics, not supported in Druid
-              return null;
+              filterOnMetrics = true;
+              break;
             }
           }
-          otherNodes.add(conj);
+          if (filterOnMetrics) {
+            nonPushableNodes.add(conj);
+          } else {
+            pushableNodes.add(conj);
+          }
         }
       }
-      return Pair.of(timeRangeNodes, otherNodes);
+      return (List<RexNode>[]) new List<?>[] {timeRangeNodes, pushableNodes, nonPushableNodes};
     }
 
     /** Returns whether we can push an expression to Druid. */

@@ -1063,12 +1063,7 @@ public class DruidAdapterIT {
         + " count(\"store_sqft\") as c\n"
         + "from \"foodmart\"\n"
         + "group by floor(\"timestamp\" to MONTH)";
-    String druidQuery = "{'queryType':'timeseries','dataSource':'foodmart',"
-        + "'descending':false,'granularity':'month',"
-        + "'aggregations':[{'type':'longSum','name':'S','fieldName':'unit_sales'},"
-        + "{'type':'count','name':'C','fieldName':'store_sqft'}],"
-        + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000'],"
-        + "'context':{'skipEmptyBuckets':true}}";
+    String druidQuery = "{'queryType':'select','dataSource':'foodmart'";
     sql(sql)
         .limit(3)
         .returnsUnordered("S=21081; C=5793", "S=23763; C=6762", "S=25270; C=7026")
@@ -1122,12 +1117,7 @@ public class DruidAdapterIT {
         + " count(\"store_sqft\") as c\n"
         + "from \"foodmart\"\n"
         + "group by floor(\"timestamp\" to DAY)";
-    String druidQuery = "{'queryType':'timeseries','dataSource':'foodmart',"
-        + "'descending':false,'granularity':'day',"
-        + "'aggregations':[{'type':'longSum','name':'S','fieldName':'unit_sales'},"
-        + "{'type':'count','name':'C','fieldName':'store_sqft'}],"
-        + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000'],"
-        + "'context':{'skipEmptyBuckets':true}}";
+    String druidQuery = "{'queryType':'select','dataSource':'foodmart'";
     sql(sql)
         .limit(3)
         .returnsUnordered("S=1244; C=391", "S=550; C=112", "S=580; C=171")
@@ -1141,12 +1131,7 @@ public class DruidAdapterIT {
         + "where \"timestamp\" >= '1996-01-01 00:00:00' and "
         + " \"timestamp\" < '1998-01-01 00:00:00'\n"
         + "group by floor(\"timestamp\" to MONTH)";
-    String druidQuery = "{'queryType':'timeseries','dataSource':'foodmart',"
-        + "'descending':false,'granularity':'month',"
-        + "'aggregations':[{'type':'longSum','name':'S','fieldName':'unit_sales'},"
-        + "{'type':'count','name':'C','fieldName':'store_sqft'}],"
-        + "'intervals':['1996-01-01T00:00:00.000/1998-01-01T00:00:00.000'],"
-        + "'context':{'skipEmptyBuckets':true}}";
+    String druidQuery = "{'queryType':'select','dataSource':'foodmart'";
     sql(sql)
         .limit(3)
         .returnsUnordered("S=21081; C=5793", "S=23763; C=6762", "S=25270; C=7026")
@@ -1638,16 +1623,15 @@ public class DruidAdapterIT {
         + "\"cases_per_pallet\" >= 8 and \"cases_per_pallet\" <= 10 and "
         + "\"units_per_case\" < 15 ";
     String druidQuery = "{'queryType':'timeseries','dataSource':'foodmart',"
-        + "'descending':false,'granularity':'all','filter':{'type':'and',"
-        + "'fields':[{'type':'selector','dimension':'__time','value':'1997',"
-        + "'extractionFn':{'type':'timeFormat','format':'yyyy','timeZone':'UTC',"
-        + "'locale':'en-US'}},{'type':'bound','dimension':'cases_per_pallet',"
-        + "'lower':'8','lowerStrict':false,'ordering':'numeric'},"
-        + "{'type':'bound','dimension':'cases_per_pallet','upper':'10',"
-        + "'upperStrict':false,'ordering':'numeric'},{'type':'bound',"
-        + "'dimension':'units_per_case','upper':'15','upperStrict':true,"
-        + "'ordering':'numeric'}]},"
-        + "'aggregations':[{'type':'doubleSum','name':'EXPR$0','fieldName':'store_sales'}],"
+        + "'descending':false,'granularity':'all','filter':{'type':'and','fields':"
+        + "[{'type':'selector','dimension':'__time','value':'1997','extractionFn':"
+        + "{'type':'timeFormat','format':'yyyy','timeZone':'UTC','locale':'en-US'}},"
+        + "{'type':'bound','dimension':'cases_per_pallet','lower':'8','lowerStrict':"
+        + "false,'ordering':'numeric'},{'type':'bound','dimension':'cases_per_pallet',"
+        + "'upper':'10','upperStrict':false,'ordering':'numeric'},{'type':'bound',"
+        + "'dimension':'units_per_case','upper':'15','upperStrict':true,'ordering':"
+        + "'numeric'}]},'aggregations':[{'type':'doubleSum','name':'EXPR$0',"
+        + "'fieldName':'store_sales'}],"
         + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000'],"
         + "'context':{'skipEmptyBuckets':true}}";
     sql(sql)
@@ -1655,8 +1639,8 @@ public class DruidAdapterIT {
             + "  DruidQuery(table=[[foodmart, foodmart]], "
             + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], "
             + "filter=[AND(=(EXTRACT_DATE(FLAG(YEAR), /INT(Reinterpret($0), 86400000)), 1997), "
-            + ">=(CAST($11):BIGINT, 8), <=(CAST($11):BIGINT, 10), <(CAST($10):BIGINT, 15))], "
-            + "projects=[[$0, $10, $11, $90]], groups=[{}], aggs=[[SUM($3)]])")
+            + ">=(CAST($11):BIGINT, 8), <=(CAST($11):BIGINT, 10), "
+            + "<(CAST($10):BIGINT, 15))], groups=[{}], aggs=[[SUM($90)]])")
         .queryContains(druidChecker(druidQuery))
         .returnsUnordered("EXPR$0=75364.09998679161");
   }
@@ -1668,20 +1652,19 @@ public class DruidAdapterIT {
         + "AND  \"product_id\" >= 1549 group by \"product_id\", EXTRACT(day from "
         + "\"timestamp\"), EXTRACT(month from \"timestamp\")";
     final String druidQuery =
-        "{'queryType':'groupBy','dataSource':'foodmart',"
-            + "'granularity':'all','dimensions':[{'type':'default','dimension':'product_id'},"
-            + "{'type':'extraction','dimension':'__time','outputName':'extract_day',"
-            + "'extractionFn':{'type':'timeFormat','format':'d','timeZone':'UTC','locale':'en-US'}},"
-            + "{'type':'extraction','dimension':'__time','outputName':'extract_month',"
-            + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC','locale':'en-US'}}],"
-            + "'limitSpec':{'type':'default'},'filter':{'type':'and','fields':[{'type':'bound',"
-            + "'dimension':'__time','lower':'30','lowerStrict':false,'ordering':'numeric',"
-            + "'extractionFn':{'type':'timeFormat','format':'d','timeZone':'UTC','locale':'en-US'}},"
-            + "{'type':'selector','dimension':'__time','value':'11',"
-            + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC','locale':'en-US'}},"
-            + "{'type':'bound','dimension':'product_id','lower':'1549','lowerStrict':false,"
-            + "'ordering':'numeric'}]},'aggregations':[{'type':'longSum','name':'dummy_agg',"
-            + "'fieldName':'dummy_agg'}],"
+        "{'queryType':'groupBy','dataSource':'foodmart','granularity':'all','dimensions'"
+            + ":[{'type':'default','dimension':'product_id'},{'type':'extraction','dimension':"
+            + "'__time','outputName':'extract_day','extractionFn':{'type':'timeFormat','format':"
+            + "'d','timeZone':'UTC','locale':'en-US'}},{'type':'extraction','dimension':'__time',"
+            + "'outputName':'extract_month','extractionFn':{'type':'timeFormat','format':'M',"
+            + "'timeZone':'UTC','locale':'en-US'}}],'limitSpec':{'type':'default'},"
+            + "'filter':{'type':'and','fields':[{'type':'bound','dimension':'__time','lower':"
+            + "'30','lowerStrict':false,'ordering':'numeric','extractionFn':{'type':'timeFormat',"
+            + "'format':'d','timeZone':'UTC','locale':'en-US'}},{'type':'selector','dimension':"
+            + "'__time','value':'11','extractionFn':{'type':'timeFormat','format':'M','timeZone':"
+            + "'UTC','locale':'en-US'}},{'type':'bound','dimension':'product_id','lower':'1549',"
+            + "'lowerStrict':false,'ordering':'numeric'}]},'aggregations':[{'type':'longSum',"
+            + "'name':'dummy_agg','fieldName':'dummy_agg'}],"
             + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
     sql(sql)
         .queryContains(druidChecker(druidQuery))
@@ -1699,21 +1682,20 @@ public class DruidAdapterIT {
     String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart','granularity':'all',"
         + "'dimensions':[{'type':'default','dimension':'product_id'},{'type':'extraction',"
         + "'dimension':'__time','outputName':'extract_day','extractionFn':{'type':'timeFormat',"
-        + "'format':'d','timeZone':'UTC','locale':'en-US'}},{'type':'extraction','dimension':'__time',"
-        + "'outputName':'extract_month','extractionFn':{'type':'timeFormat','format':'M',"
-        + "'timeZone':'UTC','locale':'en-US'}},{'type':'extraction','dimension':'__time',"
+        + "'format':'d','timeZone':'UTC','locale':'en-US'}},{'type':'extraction','dimension':"
+        + "'__time','outputName':'extract_month','extractionFn':{'type':'timeFormat','format':"
+        + "'M','timeZone':'UTC','locale':'en-US'}},{'type':'extraction','dimension':'__time',"
         + "'outputName':'extract_year','extractionFn':{'type':'timeFormat','format':'yyyy',"
         + "'timeZone':'UTC','locale':'en-US'}}],'limitSpec':{'type':'default'},"
         + "'filter':{'type':'and','fields':[{'type':'bound','dimension':'__time',"
-        + "'lower':'30','lowerStrict':false,'ordering':'numeric',"
-        + "'extractionFn':{'type':'timeFormat','format':'d','timeZone':'UTC','locale':'en-US'}},"
-        + "{'type':'selector','dimension':'__time','value':'11',"
-        + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC','locale':'en-US'}},"
-        + "{'type':'bound','dimension':'product_id','lower':'1549','lowerStrict':false,"
-        + "'ordering':'numeric'},{'type':'selector','dimension':'__time','value':'1997',"
-        + "'extractionFn':{'type':'timeFormat','format':'yyyy','timeZone':'UTC','locale':'en-US'}}]},"
-        + "'aggregations':[{'type':'longSum','name':'dummy_agg','fieldName':'dummy_agg'}],"
-        + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
+        + "'lower':'30','lowerStrict':false,'ordering':'numeric','extractionFn':{'type':'timeFormat',"
+        + "'format':'d','timeZone':'UTC','locale':'en-US'}},{'type':'selector','dimension':'__time',"
+        + "'value':'11','extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC',"
+        + "'locale':'en-US'}},{'type':'bound','dimension':'product_id','lower':'1549',"
+        + "'lowerStrict':false,'ordering':'numeric'},{'type':'selector','dimension':'__time',"
+        + "'value':'1997','extractionFn':{'type':'timeFormat','format':'yyyy','timeZone':'UTC',"
+        + "'locale':'en-US'}}]},'aggregations':[{'type':'longSum','name':'dummy_agg',"
+        + "'fieldName':'dummy_agg'}],'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
     sql(sql)
         .queryContains(druidChecker(druidQuery))
         .returnsUnordered("product_id=1549; EXPR$1=30; EXPR$2=11; EXPR$3=1997",
@@ -1724,20 +1706,16 @@ public class DruidAdapterIT {
     String sqlQuery = "SELECT \"product_id\", EXTRACT(month from \"timestamp\") FROM \"foodmart\""
         + " WHERE EXTRACT(month from \"timestamp\") BETWEEN 10 AND 11 AND  \"product_id\" >= 1558"
         + " GROUP BY \"product_id\", EXTRACT(month from \"timestamp\")";
-    String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart',"
-        + "'granularity':'all','dimensions':[{'type':'default',"
-        + "'dimension':'product_id'},{'type':'extraction','dimension':'__time',"
-        + "'outputName':'extract_month','extractionFn':{'type':'timeFormat',"
-        + "'format':'M','timeZone':'UTC','locale':'en-US'}}],"
-        + "'limitSpec':{'type':'default'},'filter':{'type':'and',"
-        + "'fields':[{'type':'bound','dimension':'__time','lower':'10',"
-        + "'lowerStrict':false,'ordering':'numeric',"
-        + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC',"
-        + "'locale':'en-US'}},{'type':'bound','dimension':'__time','upper':'11',"
-        + "'upperStrict':false,'ordering':'numeric','extractionFn':{'type':'timeFormat',"
-        + "'format':'M','timeZone':'UTC','locale':'en-US'}},{'type':'bound',"
-        + "'dimension':'product_id','lower':'1558','lowerStrict':false,"
-        + "'ordering':'numeric'}]},'aggregations':[{'type':'longSum',"
+    String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart','granularity':'all',"
+        + "'dimensions':[{'type':'default','dimension':'product_id'},{'type':'extraction',"
+        + "'dimension':'__time','outputName':'extract_month','extractionFn':{'type':'timeFormat',"
+        + "'format':'M','timeZone':'UTC','locale':'en-US'}}],'limitSpec':{'type':'default'},"
+        + "'filter':{'type':'and','fields':[{'type':'bound','dimension':'__time','lower':'10',"
+        + "'lowerStrict':false,'ordering':'numeric','extractionFn':{'type':'timeFormat','format':'M',"
+        + "'timeZone':'UTC','locale':'en-US'}},{'type':'bound','dimension':'__time','upper':'11',"
+        + "'upperStrict':false,'ordering':'numeric','extractionFn':{'type':'timeFormat','format':'M',"
+        + "'timeZone':'UTC','locale':'en-US'}},{'type':'bound','dimension':'product_id','lower':'1558',"
+        + "'lowerStrict':false,'ordering':'numeric'}]},'aggregations':[{'type':'longSum',"
         + "'name':'dummy_agg','fieldName':'dummy_agg'}],"
         + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
     sql(sqlQuery)
@@ -1750,20 +1728,17 @@ public class DruidAdapterIT {
     String sqlQuery = "SELECT \"product_id\", EXTRACT(month from \"timestamp\") FROM \"foodmart\""
         + " WHERE EXTRACT(month from \"timestamp\") IN (10, 11) AND  \"product_id\" >= 1558"
         + " GROUP BY \"product_id\", EXTRACT(month from \"timestamp\")";
-    String druidQuery = "{'queryType':'groupBy',"
-        + "'dataSource':'foodmart','granularity':'all',"
-        + "'dimensions':[{'type':'default','dimension':'product_id'},"
-        + "{'type':'extraction','dimension':'__time','outputName':'extract_month',"
-        + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC',"
-        + "'locale':'en-US'}}],'limitSpec':{'type':'default'},"
+    String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart','granularity':'all',"
+        + "'dimensions':[{'type':'default','dimension':'product_id'},{'type':'extraction',"
+        + "'dimension':'__time','outputName':'extract_month','extractionFn':{'type':'timeFormat',"
+        + "'format':'M','timeZone':'UTC','locale':'en-US'}}],'limitSpec':{'type':'default'},"
         + "'filter':{'type':'and','fields':[{'type':'or','fields':[{'type':'selector',"
-        + "'dimension':'__time','value':'10','extractionFn':{'type':'timeFormat',"
-        + "'format':'M','timeZone':'UTC','locale':'en-US'}},{'type':'selector',"
-        + "'dimension':'__time','value':'11','extractionFn':{'type':'timeFormat',"
-        + "'format':'M','timeZone':'UTC','locale':'en-US'}}]},{'type':'bound',"
-        + "'dimension':'product_id','lower':'1558','lowerStrict':false,'ordering':'numeric'}]},"
-        + "'aggregations':[{'type':'longSum','name':'dummy_agg','fieldName':'dummy_agg'}],"
-        + "'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
+        + "'dimension':'__time','value':'10','extractionFn':{'type':'timeFormat','format':'M',"
+        + "'timeZone':'UTC','locale':'en-US'}},{'type':'selector','dimension':'__time','value':'11',"
+        + "'extractionFn':{'type':'timeFormat','format':'M','timeZone':'UTC','locale':'en-US'}}]},"
+        + "{'type':'bound','dimension':'product_id','lower':'1558','lowerStrict':false,"
+        + "'ordering':'numeric'}]},'aggregations':[{'type':'longSum','name':'dummy_agg',"
+        + "'fieldName':'dummy_agg'}],'intervals':['1900-01-09T00:00:00.000/2992-01-10T00:00:00.000']}";
     sql(sqlQuery)
         .queryContains(druidChecker(druidQuery))
         .returnsUnordered("product_id=1558; EXPR$1=10", "product_id=1558; EXPR$1=11",
@@ -1978,7 +1953,7 @@ public class DruidAdapterIT {
 
   @Test public void testGroupByWeekExtract() {
     final String sql = "SELECT extract(week from \"timestamp\") from \"foodmart\" where "
-        + "\"product_id\" = 1558 and extract(week from \"timestamp\") IN (10, 11)group by extract"
+        + "\"product_id\" = 1558 and extract(week from \"timestamp\") IN (10, 11) group by extract"
         + "(week from \"timestamp\")";
 
     final String druidQuery = "{'queryType':'groupBy','dataSource':'foodmart',"
@@ -2010,7 +1985,7 @@ public class DruidAdapterIT {
         + "  BindableAggregate(group=[{0}])\n"
         + "    BindableProject(EXPR$0=[/INT(EXTRACT_DATE(FLAG(YEAR), /INT(Reinterpret($0), 86400000)), 100)])\n"
         + "      DruidQuery(table=[[foodmart, foodmart]], "
-        + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], filter=[=($1, 1558)])";
+        + "intervals=[[1900-01-09T00:00:00.000/2992-01-10T00:00:00.000]], filter=[=($1, 1558)], projects=[[$0]])";
     sql(sql).explainContains(plan).queryContains(druidChecker("'queryType':'select'"));
   }
 
